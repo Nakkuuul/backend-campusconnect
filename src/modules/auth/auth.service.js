@@ -40,7 +40,9 @@ export const registerUser = async ({ name, email, enrollment, password, role }) 
 
   // Send verification email — fire and forget (don't block registration)
   const verificationUrl = `${env.clientOrigin}/verify-email?token=${verificationToken}&email=${encodeURIComponent(email)}`;
-  sendVerificationEmail({ name, email, verificationUrl }).catch(() => {});
+  sendVerificationEmail({ name, email, verificationUrl }).catch(err => {
+    logger.error(`Failed to send verification email: ${err.message}`);
+  });
 
   // Return token but user is NOT verified yet
   const token = signToken(user._id);

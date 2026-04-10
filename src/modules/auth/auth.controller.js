@@ -1,66 +1,64 @@
-import { validationResult } from 'express-validator';
-import { registerUser, loginUser } from './auth.service.js';
-import { sendSuccess, sendError } from '../../utils/response.js';
-import { logger } from '../../utils/logger.js';
+import { Router } from 'express';
+import { body } from 'express-validator';
+import {
+  register,
+  login,
+  logout,
+  getMe,
+  verifyEmailHandler,
+  resendVerificationHandler,
+} from './auth.controller.js';
+import { protect } from '../../middlewares/auth.middleware.js';
 
-/**
- * POST /auth/register
- */
-export const register = async (req, res) => {
-  // Return validation errors from express-validator
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return sendError(res, 422, 'Validation failed', errors.array());
-  }
+const router = Router();
 
-  try {
-    const { name, email, enrollment, password, role } = req.body;
-    const { user, token } = await registerUser({ name, email, enrollment, password, role });
+// ── Validation rule sets ──────────────────────────────────────────────────────
 
-    logger.info(`New user registered: ${email}`);
+const registerRules = [
+  body('name')
+    .trim()
+    .notEmpty().withMessage('Full name is required.')
+    .matches(/^[A-Za-z]+(?:\s[A-Za-z]+)+$/).withMessage('Name must contain first and last name (letters only).'),
 
-    return sendSuccess(res, 201, 'Account created successfully', { user, token });
-  } catch (err) {
-    logger.error(`Register error: ${err.message}`);
-    return sendError(res, err.statusCode || 500, err.message);
-  }
-};
+  body('enrollment')
+    .trim()
+    .notEmpty().withMessage('Enrollment number is required.')
+    .toUpperCase()
+    .matches(/^[A-Z]\d{2}[A-Z]+[A-Z]\d{4}$/).withMessage('Enrollment must follow the format S24CSEU0193.'),
 
-/**
- * POST /auth/login
- */
-export const login = async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return sendError(res, 422, 'Validation failed', errors.array());
-  }
+  body('email')
+    .trim()
+    .notEmpty().withMessage('Email is required.')
+    .isEmail().withMessage('Enter a valid email address.')
+    .matches(/^[^\s@]+@bennett\.edu\.in$/i).withMessage('Must be a @bennett.edu.in address.'),
 
-  try {
-    const { email, password } = req.body;
-    const { user, token } = await loginUser({ email, password });
+  body('password')
+    .notEmpty().withMessage('Password is required.')
+    .isLength({ min: 8 }).withMessage('Password must be at least 8 characters.'),
 
-    logger.info(`User logged in: ${email}`);
+  body('role')
+    .optional()
+    .isIn(['student', 'faculty', 'staff']).withMessage('Role must be student, faculty, or staff.'),
+];
 
-    return sendSuccess(res, 200, 'Login successful', { user, token });
-  } catch (err) {
-    logger.error(`Login error: ${err.message}`);
-    return sendError(res, err.statusCode || 500, err.message);
-  }
-};
+const loginRules = [
+  body('email')
+    .trim()
+    .notEmpty().withMessage('Email is required.')
+    .isEmail().withMessage('Enter a valid email address.')
+    .matches(/^[^\s@]+@bennett\.edu\.in$/i).withMessage('Must be a @bennett.edu.in address.'),
 
-/**
- * POST /auth/logout
- * JWT is stateless — client is responsible for dropping the token.
- * This endpoint exists so the frontend has a clean API call to hook into.
- */
-export const logout = (_req, res) => {
-  return sendSuccess(res, 200, 'Logged out successfully');
-};
+  body('password')
+    .notEmpty().withMessage('Password is required.'),
+];
 
-/**
- * GET /auth/me
- * Returns the authenticated user (token already verified by middleware).
- */
-export const getMe = (req, res) => {
-  return sendSuccess(res, 200, 'Authenticated user', { user: req.user });
-};
+// ── Routes ────────────────────────────────────────────────────────────────────
+
+router.post('/register',              registerRules, register);
+router.post('/login',                 loginRules,    login);
+router.get('/verify-email',                          verifyEmailHandler);
+router.post('/resend-verification',                  resendVerificationHandler);
+router.post('/logout',                protect,       logout);
+router.get('/me',                     protect,       getMe);
+
+export default router;

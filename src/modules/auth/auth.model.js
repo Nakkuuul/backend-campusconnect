@@ -1,7 +1,6 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 
-// Matches S24CSEU0193: 1 letter · 2 digits · dept letters · U · 4 digits
 const ENROLLMENT_REGEX = /^[A-Z]\d{2}[A-Z]+[A-Z]\d{4}$/;
 const EMAIL_REGEX      = /^[^\s@]+@bennett\.edu\.in$/i;
 
@@ -36,7 +35,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Password is required'],
       minlength: [8, 'Password must be at least 8 characters'],
-      select: false, // never returned in queries by default
+      select: false,
     },
 
     role: {
@@ -49,28 +48,40 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+
+    // Magic link verification
+    verificationToken: {
+      type: String,
+      default: null,
+      select: false,
+    },
+
+    verificationTokenExpiry: {
+      type: Date,
+      default: null,
+      select: false,
+    },
   },
   {
-    timestamps: true, // createdAt, updatedAt
+    timestamps: true,
   }
 );
 
-// Hash password before saving
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
   this.password = await bcrypt.hash(this.password, 12);
   next();
 });
 
-// Instance method — compare plain password against hash
 userSchema.methods.comparePassword = async function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
 };
 
-// Strip sensitive fields when serialising to JSON
 userSchema.methods.toJSON = function () {
   const obj = this.toObject();
   delete obj.password;
+  delete obj.verificationToken;
+  delete obj.verificationTokenExpiry;
   delete obj.__v;
   return obj;
 };

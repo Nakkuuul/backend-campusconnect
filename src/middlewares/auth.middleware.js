@@ -13,19 +13,34 @@ export const protect = async (req, res, next) => {
       return sendError(res, 401, 'Access denied. No token provided.');
     }
 
-    const token = authHeader.split(' ')[1];
-    const decoded = verifyToken(token); // throws if invalid/expired
+    const token   = authHeader.split(' ')[1];
+    const decoded = verifyToken(token);
 
     const user = await User.findById(decoded.id);
     if (!user) {
       return sendError(res, 401, 'User no longer exists.');
     }
 
-    req.user = user; // available in all downstream controllers
+    req.user = user;
     next();
   } catch (err) {
     return sendError(res, err.statusCode || 401, err.message);
   }
+};
+
+/**
+ * Require email to be verified.
+ * Always use AFTER protect middleware.
+ * Usage: router.get('/dashboard', protect, requireVerified, controller)
+ */
+export const requireVerified = (req, res, next) => {
+  if (!req.user.isVerified) {
+    return sendError(res, 403, 'Please verify your email address before accessing this feature.', {
+      code: 'EMAIL_NOT_VERIFIED',
+      email: req.user.email,
+    });
+  }
+  next();
 };
 
 /**

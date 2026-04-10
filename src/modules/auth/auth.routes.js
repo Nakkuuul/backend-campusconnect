@@ -1,6 +1,13 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
-import { register, login, logout, getMe } from './auth.controller.js';
+import {
+  register,
+  login,
+  logout,
+  getMe,
+  verifyEmailHandler,
+  resendVerificationHandler,
+} from './auth.controller.js';
 import { protect } from '../../middlewares/auth.middleware.js';
 
 const router = Router();
@@ -47,9 +54,11 @@ const loginRules = [
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 
-router.post('/register', registerRules, register);
-router.post('/login',    loginRules,    login);
-router.post('/logout',   protect,       logout);
-router.get('/me',        protect,       getMe);
+router.post('/register',              registerRules, register);
+router.post('/login',                 loginRules,    login);
+router.get('/verify-email',                          verifyEmailHandler);
+router.post('/resend-verification',                  resendVerificationHandler);
+router.post('/logout',                protect,       logout);
+router.get('/me',                     protect,       getMe);
 
 export default router;

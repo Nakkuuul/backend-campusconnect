@@ -12,6 +12,7 @@ import routes from './routes/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
+app.set('trust proxy', 1);
 
 // ── Security / misc ───────────────────────────────────────────────────────────
 const allowedOrigins = env.clientOrigin.split(',').map(o => o.trim());
